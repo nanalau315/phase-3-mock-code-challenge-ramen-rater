@@ -2,22 +2,27 @@
 const ramenMenu = document.querySelector('div#ramen-menu')
 const ramenDetail = document.querySelector('div#ramen-detail')
 const ramenForm = document.querySelector('form#ramen-rating')
+const newRamen = document.querySelector('form#new-ramen')
 
-ramenMenu.addEventListener('click', getRamenDetail)
+ramenMenu.addEventListener('click', handleClickOnRamenMenu)
 ramenForm.addEventListener('submit',getUpdatedRamenDataFromForm)
+newRamen.addEventListener('submit',createNewRamen)
+
 
 getAllRamen()
 function getAllRamen(){
     fetch("http://localhost:3000/ramens")
     .then(res => res.json())
-    .then(addRamenToDom)
+    .then(addRamenToRamenMenu)
 }
 
 function getOneRamen(ramenId){
     fetch(`http://localhost:3000/ramens/${ramenId}`)
     .then(res => res.json())
-    .then(ramen => addSingleRamenToDom(ramen))
+    .then(ramen => addRamenDetailToDom(ramen))
 }
+
+getOneRamen(1)
 
 function updateRamenRatingInDb(updatedRamenObj, needUpdateRamenId){
     // debugger
@@ -27,41 +32,88 @@ function updateRamenRatingInDb(updatedRamenObj, needUpdateRamenId){
         body: JSON.stringify(updatedRamenObj),
     })
     .then(res => res.json())
-    .then(addSingleRamenToDom)
-    
+    .then(addRamenDetailToDom)
 }
 
-function addRamenToDom(allRamen){
-    // console.log(allRamen)
-    allRamen.forEach(ramen =>{
-        ramenMenu.innerHTML += `
-        <img data-id=${ramen.id} src=${ramen.image} alt=${ramen.name}>
-        `
+function addNewRamenToDb(newRamenObj){
+    fetch("http://localhost:3000/ramens", {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json',},
+    body: JSON.stringify(newRamenObj),
     })
+    .then(res => res.json())
+    .then(newRamenObj => addRamenToRamenMenu(newRamenObj),
+        addRamenDetailToDom(newRamenObj));
 }
 
-function getRamenDetail(e){
+function deleteRamenFromDb(ramenId){
+    fetch(`http://localhost:3000/ramens/${ramenId}`, {
+        method: 'DELETE'})
+}
+    
+
+
+function addRamenToRamenMenu(allRamen){
+    // console.log(allRamen)
+    // add ramen on the menu
+    if (allRamen.length > 1){
+        allRamen.forEach(ramen =>{
+        ramenMenu.innerHTML += `
+        <div>
+            <img data-id=${ramen.id} src=${ramen.image} alt=${ramen.name}>
+            <button class="delete" data-id=${ramen.id}>X</button>
+        </div>        
+        `
+        })
+    } else if(allRamen.length > 0){
+        // console.log('only one!')
+        ramenMenu.innerHTML += `
+        <div>
+            <img data-id=${ramen.id} src=${ramen.image} alt=${ramen.name}>
+            <button class="delete" data-id=${ramen.id}>X</button>
+        </div>        
+        `
+    }
+}
+
+function handleClickOnRamenMenu(e){
     // console.log('hi')
-    const ramenId = e.target.dataset.id 
-    getOneRamen(ramenId)
+    // debugger
+    if (e.target.matches('img')){
+        const ramenId = e.target.dataset.id 
+        getOneRamen(ramenId)
+    }else if(e.target.className === 'delete'){
+        deleteRamenFromDom(e)
+    }
 }
 
-function addSingleRamenToDom(ramen){
+function deleteRamenFromDom(e){
+    // console.log('hi')
+    const ramenId = e.target.dataset.id
+    e.target.parentElement.remove()
+    deleteRamenFromDb(ramenId)
+}
+
+function addRamenDetailToDom(ramen){
+    // put the detail of Ramen on page
     // console.log('hi')
     ramenDetail.innerHTML = `
-        <img class="detail-image" src="${ramen.image}" alt="${ramen.name}" />
-        <h2 class="name">${ramen.name}</h2>
-        <h3 class="restaurant">${ramen.restaurant}</h3>
-    `
-    // const formId = ramen.id
-    ramenDetail.nextElementSibling.dataset.id = ramen.id
+        <div>
+            <img class="detail-image" src="${ramen.image}" alt="${ramen.name}" />
+            <h2 class="name">${ramen.name}</h2>
+            <h3 class="restaurant">${ramen.restaurant}</h3>
+        </div>
+       `
+    ramenForm.dataset.id = ramen.id
     ramenForm.innerHTML = `
+        <div>
             <label for="rating">Rating: </label>
             <input type="text" name="rating" id="rating" value="${ramen.rating}" />
             <label for="comment">Comment: </label>
             <textarea name="comment" id="comment">${ramen.comment}</textarea>
-            <input type="submit" value="Update" />
-    `
+            <input type="submit" value="Update"/>
+        </div>
+        `
 }
 
 function getUpdatedRamenDataFromForm(e){
@@ -69,13 +121,32 @@ function getUpdatedRamenDataFromForm(e){
     e.preventDefault()
     const updatedRating = e.target.rating.value
     const updatedComment = e.target.comment.value
-    // const needUpdateRamenId = e.target.dataset.id
     const needUpdateRamenId = parseInt(e.target.dataset.id)
 
     const updatedRamenObj = {
         rating: updatedRating,
         comment: updatedComment
     }
-    // debugger
     updateRamenRatingInDb(updatedRamenObj, needUpdateRamenId)
 }
+
+function createNewRamen(e){
+    // console.log('hi')
+    e.preventDefault()
+    const newName = e.target.name.value
+    const newRest = e.target.restaurant.value
+    const newImg = e.target.image.value
+    const newRating = e.target.rating.value
+    const newComment = e.target.querySelector('#new-comment').value
+
+    const newRamenObj = {
+        name: newName,
+        restaurant: newRest,
+        image: newImg,
+        rating: newRating,
+        comment: newComment
+    }
+    newRamen.reset()
+    addNewRamenToDb(newRamenObj)
+}
+
